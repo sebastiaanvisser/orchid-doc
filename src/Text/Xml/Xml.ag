@@ -1,0 +1,121 @@
+-------[ XML data-types ]------------------------------------------------------
+
+{
+import Misc.Commons (ss)
+
+type Namespace = String
+type Comment   = String
+type Text      = String
+type NodePair  = (Node, Node)
+type NodeMap   = [NodePair]
+}
+
+TYPE NodeSet = [Node]
+DATA Node
+  | Doc        root       : Node
+  | NodeSet    nodes      : NodeSet
+  | Snippet    snippet    : String
+  | Element    namespace  : Namespace
+               name       : String
+               attributes : Attributes
+               childNodes : Node
+  | Text       text       : Text
+  | Comment    comment    : Comment
+  | Empty
+
+-- | ProcessingIntruction  instruction : ...
+
+TYPE Attributes = [Attribute]
+DATA Attribute
+  | Attribute  namespace  : Namespace
+               key        : String
+               value      : String
+
+DERIVING Node      : Eq
+DERIVING Attribute : Eq
+
+-------[ quasi constructors ]--------------------------------------------------
+
+{
+doc     = Node_Doc
+text    = Node_Text
+comment = Node_Comment
+nodeset = Node_NodeSet
+snippet = Node_Snippet
+empty   = Node_Empty
+
+elementNS ns e = Node_Element ns e []
+element        = elementNS ""
+
+attributeNS ns k v (Node_Element n' e a s) = Node_Element n' e ((Attribute_Attribute ns k v):a) s
+attribute = attributeNS ""
+
+-- Determine whether an XML node has significant data.
+significant (Node_NodeSet []) = False
+significant (Node_Text    "") = False
+significant (Node_Comment "") = False
+significant (Node_Empty     ) = False
+significant _                 = True
+
+}
+
+-------[ does a node contain text? ]-------------------------------------------
+
+ATTR Node NodeSet [ | | mixed USE {||} {False} : Bool ]
+
+SEM Node
+  | Text    lhs.mixed = True
+  | Element lhs.mixed = False
+
+-------[ XML pretty printing ]-------------------------------------------------
+
+{
+  -- todo: use utils.
+ppNodeset []  _     = id
+ppNodeset [n] mixed = n
+ppNodeset ns  mixed = c . foldl1 (\a -> ((a.c).)) ns . c
+  where c = if mixed then id else ss "\n"
+
+ppNs "" = ss ""
+ppNs ns = ss (ns ++ ":")
+
+-- Escape special characters in text that will end up in an XML document.
+escape :: String -> String
+escape []       = []
+escape ('<':xs) = "&lt;"   ++ escape xs
+escape ('>':xs) = "&gt;"   ++ escape xs
+escape ('&':xs) = "&amp;"  ++ escape xs
+escape ('"':xs) = "&quot;" ++ escape xs
+escape (x:xs)   = x : escape xs
+
+}
+
+ATTR Attributes Attribute Node [ | | pp USE {.} {id} :   ShowS   ]
+ATTR NodeSet                   [ | | pp USE {:} {[]} : {[ShowS]} ]
+
+SEM Node
+  | NodeSet   lhs.pp  = ppNodeset @nodes.pp @nodes.mixed
+  | Element   lhs.pp  = ss "<" . ppNs @namespace . ss @name . @attributes.pp . ss ">" .
+                        @childNodes.pp . ss "</" . ss @name . ss ">"
+  | Text      lhs.pp  = ss (escape @text)
+  | Snippet   lhs.pp  = ss @snippet
+  | Comment   lhs.pp  = ss "<!-- " . ss (escape @comment) . ss " -->"
+
+SEM Attribute
+  | Attribute lhs.pp  = ppNs @namespace . ss @key . ss "=\"" . ss (escape @value) . ss "\""
+
+SEM Attributes
+  | Cons      lhs.pp  = ss " " . @hd.pp . @tl.pp
+
+-------[ wrapper functions for semantic domains ]------------------------------
+
+{
+wrappedSemNode = flip (wrap_Node . sem_Node) Inh_Node
+
+instance Show Node where
+  show = xmlToString
+
+xmlToString :: Node -> String
+xmlToString = ($"") . pp_Syn_Node . wrappedSemNode
+}
+

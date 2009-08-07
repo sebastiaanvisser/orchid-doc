@@ -1,0 +1,139 @@
+{
+import Prelude hiding (span, div)
+import Data.List (intercalate)
+import qualified Text.XML.Light as XL
+
+import Text.Document.Plugin
+import Text.Xhtml.Xhtml
+import Text.Xml.Xml
+import Misc.Commons (fmap2, intersperseS, concatMapS, unlinesS, concatS, eolS, ss)
+import qualified Text.Xhtml.Xhtml as H
+
+data LinkType =
+    Internal
+  | External
+  | Reference
+  deriving (Eq, Show)
+
+}
+
+-------[ general document data type ]------------------------------------------
+
+TYPE Annotation           = (String, Inline)
+TYPE Pair                 = (Block, Block)
+TYPE EitherStructureBlock = EITHER Structure Block
+TYPE MaybeBlock           = MAYBE Block
+TYPE Title                = MAYBE Inline
+
+TYPE Annotations          = [Annotation]
+TYPE Blocks               = [Block]
+TYPE Inlines              = [Inline]
+TYPE Pairs                = [Pair]
+TYPE SectionContents      = [EitherStructureBlock]
+
+DATA Document
+  | Document  title       : Title
+              subtitle    : Title
+              annotations : Annotations
+              abstract    : MaybeBlock
+              body        : SectionContents
+
+DATA Structure
+  | Section   title       : Title
+              contents    : SectionContents
+
+DATA Block
+  | Blocks    blocks      : Blocks
+  | Paragraph paragraph   : Inline
+  | Enum      items       : Blocks
+  | List      items       : Blocks
+  | Mapping   pairs       : Pairs
+  | Verbatim  verbatim    : Block
+  | Comment   comment     : String
+  | Include   document    : String
+  | Anchor    name        : String
+              contents    : Block
+  | Caption   caption     : Inline
+              contents    : Block
+  | Plugin    plugin      : {(PrettyPrinter Document, Processor Document Syn_Document)}
+
+DATA Inline
+  | Lines     lines       : Inlines
+  | Image     source      : String
+              description : String
+  | Text      text        : String
+  | Emph      emph        : Inline
+  | Strong    strong      : Inline
+  | Fixed     fixed       : Inline
+  | Link      ref         : String
+              kind        : LinkType
+              description : Inline
+  | Footnote  note        : Inline
+  | Quote     quote       : Inline
+
+DERIVING Document         : Show, Eq
+DERIVING Annotation       : Show, Eq
+DERIVING Structure        : Show, Eq
+DERIVING Block            : Show, Eq
+DERIVING Pair             : Show, Eq
+DERIVING Inline           : Show, Eq
+
+-------[ convenient constructor names ]----------------------------------------
+
+{
+
+document   = Document_Document  
+section    = Structure_Section   
+blocks     = Block_Blocks    
+paragraph  = Block_Paragraph 
+enum       = Block_Enum
+list       = Block_List
+mapping    = Block_Mapping
+verbatim   = Block_Verbatim
+comment    = Block_Comment
+include    = Block_Include
+anchor_    = Block_Anchor
+caption    = Block_Caption
+plugin     = Block_Plugin
+
+lines      = Inline_Lines     
+image      = Inline_Image     
+text       = Inline_Text      
+emph       = Inline_Emph      
+strong     = Inline_Strong    
+fixed      = Inline_Fixed
+link       = Inline_Link      
+footnote   = Inline_Footnote  
+quote      = Inline_Quote     
+
+(Inline_Text a) <++> (Inline_Text b) = Inline_Text (a ++ b)
+
+-- Wrapper functions for semantic domains.
+wrappedSemDocument doc = flip (wrap_Document . sem_Document) (Inh_Document doc) doc
+
+}
+
+-------[ make document available as attribute ]--------------------------------
+
+ATTR
+  Document
+  Structure EitherStructureBlock SectionContents
+  Pairs  Pair Blocks Block MaybeBlock
+  [ sem : Document | | ]
+
+-------[ inclusion of specific attributes ]------------------------------------
+
+INCLUDE "Text/Document/Core/Structure.ag"
+
+-- Printers.
+
+INCLUDE "Text/Document/Printer/Xhtml.ag"
+INCLUDE "Text/Document/Printer/Xml.ag"
+INCLUDE "Text/Document/Printer/Latex.ag"
+
+-- Plugin related inclusions.
+
+INCLUDE "Text/Document/Core/Processing.ag"
+
+INCLUDE "Text/Document/Plugin/TOC.ag"
+

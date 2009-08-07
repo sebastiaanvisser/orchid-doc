@@ -1,0 +1,24 @@
+{
+documentToXhtmlTOC :: Document -> NodeSet
+documentToXhtmlTOC = xhtmlTOC_Syn_Document . wrappedSemDocument
+}
+
+-------- create XHTML table of contents ---------------------------------------
+ 
+ATTR EitherStructureBlock Structure [ | | xhtmlTOC USE {:} {[]} : NodeSet ]
+ATTR Document SectionContents       [ | | xhtmlTOC USE {:} {[]} : NodeSet ]
+
+SEM Document
+  | Document lhs.xhtmlTOC = xhtmlCleanList @body.xhtmlTOC
+
+SEM Structure
+  | Section lhs.xhtmlTOC =
+    let title = H.emph @title.xhtml
+        num   = span $ H.text $ intercalate "." $ map show $ reverse $ @lhs.section
+        item  = nodeset [title, num]
+        f     = if @title.isTitle then (item :) else id in
+    [nodeset $ f $ xhtmlCleanList @contents.xhtmlTOC]
+
+SEM SectionContents
+  | Cons lhs.xhtmlTOC = @hd.xhtmlTOC ++ @tl.xhtmlTOC
+

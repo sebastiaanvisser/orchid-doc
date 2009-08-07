@@ -1,0 +1,42 @@
+-------- compute section level ------------------------------------------------
+
+ATTR
+  Structure
+  EitherStructureBlock
+  SectionContents
+  [ level : Int | | ]
+
+SEM Document
+   | Document body.level = 1
+
+SEM Structure
+   | Section contents.level = @lhs.level + 1
+
+-------- does a title have contents? ------------------------------------------
+
+ATTR Title [ | | isTitle : Bool ]
+
+SEM Title
+  | Just    lhs.isTitle = True
+  | Nothing lhs.isTitle = False
+
+-------- section numbering ----------------------------------------------------
+
+-- The attribute is a list for the index number per section level. Not that
+-- this list in reverse order.
+
+ATTR Structure EitherStructureBlock SectionContents
+  [ | section : {[Int]} | ]
+
+-- Section numbering starts with 1.
+SEM Document
+  | Document body.section = [1]
+
+-- Only increase section counter when the title is significant.
+SEM Structure
+  | Section contents.section = 1 : @lhs.section
+  | Section lhs.section      =
+      let _:x:xs = @contents.section in
+      (if @title.isTitle then (+1) else id)
+      x : xs
+

@@ -1,0 +1,12 @@
+{-
+Throughout the entire document collect all (non-pure) plug-in processors. These
+processors are created the same way as the regular plug-in output is created
+but must - due to IO - be computed outside the pure printing flow.
+-}
+
+ATTR
+  Document Structure Blocks SectionContents MaybeBlock EitherStructureBlock Pair Block
+  [ | | processors USE {++} {[]} : {[Processor Document Syn_Document]} ]
+
+SEM Block | Plugin lhs.processors = [snd @plugin]
+

@@ -1,0 +1,85 @@
+-------[ JSON data types ]-----------------------------------------------------
+
+{
+import Prelude hiding (null)
+import qualified Prelude as P
+import Data.List (intercalate)
+import Data.Char (toLower)
+
+data Number = R Double | Z Integer
+}
+
+DATA Json
+  | String      s : String
+  | Number      n : Number
+  | Object      p : Pairs
+  | Array       a : Array
+  | Bool        b : Bool
+  | Null
+
+DATA Pair
+  | Pair        k : String
+                v : Json
+
+TYPE Array = [Json]
+TYPE Pairs = [Pair]
+
+-------[ quasi constructors ]--------------------------------------------------
+
+{
+string = Json_String
+number = Json_Number
+int    = Json_Number . Z
+real   = Json_Number . R
+object = Json_Object
+array  = Json_Array
+bool   = Json_Bool
+null   = Json_Null
+pair   = Pair_Pair
+(|:)   = pair
+}
+
+-------[ JSON pretty printing ]------------------------------------------------
+
+{
+ss = showString
+
+intercalateS c = foldl1 (\a -> ((a.c).))
+}
+
+ATTR Json Pair   [ | | pp :   ShowS ]
+ATTR Array Pairs [ | | pp : {[ShowS]} ]
+
+SEM Json
+  | String lhs.pp  = ss $ show @s
+  | Number lhs.pp  = case @n of R r -> ss $ show r ; Z z -> ss $ show z
+  | Object lhs.pp  = ss "{" . intercalateS (ss ",") @p.pp . ss "}"
+  | Array  lhs.pp  = ss "[" . intercalateS (ss ",") @a.pp . ss "]"
+  | Bool   lhs.pp  = ss $ map toLower $ show @b
+  | Null   lhs.pp  = ss "null"
+
+SEM Array
+  | Nil    lhs.pp = []
+  | Cons   lhs.pp = @hd.pp : @tl.pp
+
+SEM Pair
+  | Pair   lhs.pp  = ss (show @k) . ss ":" . @v.pp
+
+SEM Pairs
+  | Nil    lhs.pp = []
+  | Cons   lhs.pp = @hd.pp : @tl.pp
+
+-------[ wrapper functions for semantic domains ]------------------------------
+
+{
+
+wrappedSemJson = flip (wrap_Json . sem_Json) Inh_Json
+
+instance Show Json where
+  show = jsonToString
+
+jsonToString :: Json -> String
+jsonToString = ($"") . pp_Syn_Json . wrappedSemJson
+
+}
+

@@ -1,0 +1,109 @@
+{
+toXML :: Document -> XL.Content
+toXML = xml_Syn_Document . wrappedSemDocument
+
+-- todo: type signatures
+
+xmlElem name childs =
+  XL.Elem $ XL.Element (XL.QName name Nothing Nothing) [] childs Nothing
+
+xmlText text = XL.Text (XL.CData XL.CDataText text Nothing)
+
+xmlFromOutput (OutputXMLLight s) = s
+
+xmlPlugin pp doc = maybe err (\a -> xmlFromOutput $ a doc) $ printer pp XML
+  where
+    err = xmlText ("No XML pretty printer for plugin: " ++ printerName pp)
+
+-- Very `rough' function to strip the outer element off.
+xmlStrip :: XL.Content -> XL.Content
+xmlStrip (XL.Elem (XL.Element _ _ (c:_) _)) = c
+
+}
+
+ATTR
+  Document
+  Inline
+  Block
+  Inline
+  Structure
+  EitherStructureBlock
+  Annotation
+  Pair
+
+  [ | | xml USE {} {} : {XL.Content} ]
+
+ATTR
+  SectionContents
+  Title
+  Inlines
+  Blocks
+  MaybeBlock
+  Annotations
+  Pairs
+
+  [ | | xml USE {:} {[]} : {[XL.Content]} ]
+
+SEM Document
+  | Document   lhs.xml = xmlElem "document" [
+                           xmlElem "title"       (map xmlStrip @title.xml)
+                         , xmlElem "subtitle"    (map xmlStrip @subtitle.xml)
+                         , xmlElem "annotations" @annotations.xml
+                         , xmlElem "abstract"    @abstract.xml
+                         , xmlElem "body"        @body.xml
+                         ]
+
+SEM Annotation
+  | Tuple      lhs.xml = xmlElem "annotation" [
+                           xmlElem "key"   [xmlText @x1]
+                         , xmlElem "value" [@x2.xml]
+                         ]
+
+SEM Title
+  | Nothing    lhs.xml = []
+  | Just       lhs.xml = [xmlElem "title" [@just.xml]]
+
+SEM MaybeBlock
+  | Nothing    lhs.xml = []
+  | Just       lhs.xml = [xmlElem "maybeblock" [@just.xml]]
+
+SEM Structure
+  | Section    lhs.xml = xmlElem "section" (
+                           @title.xml ++
+                           @contents.xml
+                         )
+
+SEM Pair
+  | Tuple      lhs.xml = xmlElem "pair" [@x1.xml, @x2.xml]
+
+SEM Block
+  | Blocks     lhs.xml = xmlElem "blocks"    @blocks.xml
+  | Paragraph  lhs.xml = xmlElem "paragraph" [@paragraph.xml]
+  | Enum       lhs.xml = xmlElem "enum"      (map (xmlElem "item" . (:[])) @items.xml)
+  | List       lhs.xml = xmlElem "list"      (map (xmlElem "item" . (:[])) @items.xml)
+  | Mapping    lhs.xml = xmlElem "mapping"   @pairs.xml
+  | Verbatim   lhs.xml = xmlElem "verbatim"  [@verbatim.xml]
+  | Include    lhs.xml = xmlElem "include"   [xmlText @document]
+  | Comment    lhs.xml = xmlElem "comment"   [xmlText @comment]
+  | Anchor     lhs.xml = xmlElem "anchor"    [xmlText @name, @contents.xml]
+  | Caption    lhs.xml = xmlElem "caption"   [@caption.xml, @contents.xml]
+  | Plugin     lhs.xml = xmlElem "plugin"    [xmlPlugin (fst @plugin) @lhs.sem]
+
+SEM Inline
+  | Lines      lhs.xml = xmlElem "lines" @lines.xml
+  | Image      lhs.xml = xmlElem "image" [
+                           xmlElem "source"      [xmlText @source]
+                         , xmlElem "description" [xmlText @description]
+                         ]
+  | Text       lhs.xml = xmlText @text
+  | Emph       lhs.xml = xmlElem "emph"   [@emph.xml]
+  | Strong     lhs.xml = xmlElem "strong" [@strong.xml] 
+  | Fixed      lhs.xml = xmlElem "fixed"  [@fixed.xml]
+  | Link       lhs.xml = xmlElem "link" [
+                           xmlElem "ref"         [xmlText @ref]
+                         , xmlElem "kind"        [xmlText (show @kind)]
+                         , xmlElem "description" [@description.xml]
+                         ]
+  | Footnote   lhs.xml = xmlElem "footnote" [@note.xml]
+  | Quote      lhs.xml = xmlElem "quote"    [@quote.xml]
+

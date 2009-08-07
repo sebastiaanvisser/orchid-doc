@@ -1,0 +1,104 @@
+-------[ document specific XHTML helpers ]-------------------------------------
+
+{
+
+toXHTML :: Document -> Node
+toXHTML = xhtml_Syn_Document . wrappedSemDocument
+
+xhtmlDocument t s anns ab b =
+  classDiv "document" $ nodeset (
+      classDiv "header" (nodeset ([
+        h1 t
+      , withClass "sub" h1 s
+--       , classDiv "author" (nodeset [maybe empty id (lookup "author" anns)])
+--       , classDiv "enmail" (nodeset [maybe empty id (lookup "email" anns)])
+    ] ++ map (\(a, b) -> classDiv ("annotation " ++ a) (nodeset [b])) anns)
+    ) : xhtmlAbstract ab : b)
+
+-- Create the HTML block containing the document abstract.
+xhtmlAbstract ab
+  | ab == empty = empty
+  | otherwise =
+      classDiv "abstract"
+    $ nodeset [h2 $ H.text "Abstract", ab]
+
+xhtmlSection _   _ False _ b = div $ nodeset b
+xhtmlSection lvl s True  t b = div $ nodeset (hdr : b)
+  where
+    title  = nodeset [span $ H.text number, t]
+    hdr    = header (lvl+2) title
+    number = (intercalate "." $ map show $ reverse s) ++ " "
+
+xhtmlCleanList xs = if null items then [] else [ul $ items]
+  where items = filter significant xs
+
+xhtmlLink kind  = withClass (show kind)
+
+linkAnchor Reference ref = anchor ('#':ref)
+linkAnchor Internal  ref = anchor (ref ++ ".html")
+linkAnchor _         ref = anchor ref
+
+xhtmlFromOutput (OutputPlain s) = H.text s
+xhtmlFromOutput (OutputXML   n) = n
+
+xhtmlPlugin pp doc = maybe err (\a -> xhtmlFromOutput $ a doc) $ printer pp XHTML
+  where
+    err = classSpan "format-error"
+        $ H.text ("No XHTML pretty printer for plugin: " ++ printerName pp)
+
+}
+
+-------[ document to XHTML translation ]---------------------------------------
+
+ATTR Document Structure
+     EitherStructureBlock
+     Block MaybeBlock
+     Inline Title         [ | | xhtml USE {_} {empty} : Node                ]
+ATTR SectionContents
+     Blocks Inlines       [ | | xhtml USE {:} {[]}    : NodeSet             ]
+ATTR Annotations          [ | | xhtml USE {:} {[]}    : {[(String, Node)]}  ]
+ATTR Annotation           [ | | xhtml                 : {(String, Node)}    ]
+ATTR Pairs                [ | | xhtml USE {:} {[]}    : {[(Node, Node)]}  ]
+ATTR Pair                 [ | | xhtml                 : {(Node, Node)}    ]
+
+SEM Document
+  | Document   lhs.xhtml = xhtmlDocument
+                           @title.xhtml
+                           @subtitle.xhtml
+                           @annotations.xhtml
+                           @abstract.xhtml
+                           @body.xhtml
+
+SEM Structure
+  | Section    lhs.xhtml = xhtmlSection @lhs.level @lhs.section @title.isTitle @title.xhtml @contents.xhtml
+
+SEM Annotation
+  | Tuple      lhs.xhtml = (@x1, @x2.xhtml)
+
+SEM Pair
+  | Tuple      lhs.xhtml = (@x1.xhtml, @x2.xhtml)
+
+SEM Block
+  | Blocks     lhs.xhtml = nodeset @blocks.xhtml
+  | Paragraph  lhs.xhtml = par @paragraph.xhtml
+  | Enum       lhs.xhtml = ol @items.xhtml
+  | List       lhs.xhtml = ul @items.xhtml
+  | Mapping    lhs.xhtml = dl @pairs.xhtml
+  | Verbatim   lhs.xhtml = pre @verbatim.xhtml
+  | Comment    lhs.xhtml = H.text @comment
+  | Include    lhs.xhtml = classDiv "include" $ nodeset [H.text @document]
+  | Anchor     lhs.xhtml = nameAnchor @name @contents.xhtml
+  | Caption    lhs.xhtml = classDiv "caption" $ nodeset [(classDiv "caption-label" @caption.xhtml), @contents.xhtml]
+  | Plugin     lhs.xhtml = xhtmlPlugin (fst @plugin) @lhs.sem
+
+SEM Inline
+  | Lines      lhs.xhtml = nodeset @lines.xhtml
+  | Image      lhs.xhtml = img @source @description
+  | Text       lhs.xhtml = H.text @text
+  | Emph       lhs.xhtml = H.emph @emph.xhtml
+  | Strong     lhs.xhtml = H.strong @strong.xhtml
+  | Fixed      lhs.xhtml = tt @fixed.xhtml
+  | Link       lhs.xhtml = xhtmlLink @kind (linkAnchor @kind @ref) @description.xhtml
+  | Footnote   lhs.xhtml = classSpan "footnote" @note.xhtml
+  | Quote      lhs.xhtml = cite @quote.xhtml
+

@@ -1,0 +1,12 @@
+Use the Haskell cabal-install to install Orchid-doc:
+
+  cabal configure &&
+  ./prepare.sh
+  cabal build &&
+  cabal install
+
+The prepare.sh step preprocesses the Attribute Grammar sources and is optional.
+Pre-generated Haskell sources are included.
+
+Please report problems to: sfvisser@cs.uu.nl
+

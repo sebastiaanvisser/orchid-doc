@@ -1,0 +1,126 @@
+{
+
+toLaTeX :: Document -> String
+toLaTeX = ($"") . latex_Syn_Document . wrappedSemDocument
+
+-- Escape special characters in text that will end up in an LaTeX document.
+escapeTex :: String -> String
+escapeTex []       = []
+escapeTex ('\\':xs) = "\\\\"   ++ escapeTex xs
+escapeTex (x:xs)   = x : escapeTex xs
+
+-- Shortcut functions for common tex constructs.
+
+ifEmpty   s t e = if not (null (s "")) then t else e
+ifEmptyId s t = ifEmpty s t id
+
+texBlock    n c   = ss "\\begin{" . ss n . ss "}\n" . c . ss "\\end{" . ss n . ss "}\n"
+texLine     n c   = ss "\\" . ss n . ss "{\n" . c . ss "}\n"
+texSingle   n     = ss "\\" . ss n . ss "\n"
+texStart    n     = ss "\\" . ss n . ss "\n"
+texStartP   n b p = ss "\\" . ss n . ifEmptyId b (ss "[" . b . ss "]") . ss "{" . p . ss "}\n"
+texSurround n p   = ss "\\" . ss n . ss "{" . p . ss "}"
+
+-- Shortcut functions specifc latex constructs.
+
+texDocument t s a b =
+    texArticle
+  . texTitle (t . ss "\\\\" . s)
+  . texBlock "document"
+      (texMaketitle . texAbstract a . b)
+
+texArticle        = texStartP   "documentclass" id (ss "article")
+                  . texStartP   "usepackage" id (ss "amssymb,amsmath,bm,color")
+                  . texStartP   "usepackage" (ss "utf8") (ss "inputenc")
+                  . texStartP   "usepackage" id (ss "hyperref")
+texTitle          = texStartP   "title" id
+texMaketitle      = texSingle   "maketitle"
+texAbstract       = texBlock    "abstract"
+texVerbatim       = texBlock    "verbatim"
+texSection n      = texStartP   (concat (replicate n "sub") ++ "section") id
+texItemize        = texBlock    "itemize"
+texEnumerate      = texBlock    "enumerate"
+texItem           = texStart    "item"
+texEmph           = texSurround "emph"
+texStrong         = texSurround "textbf"
+texFixed          = texSurround "texttt"
+texLink a b       = texSurround "url" (ss a) 
+texFootnote       = texSurround "footnote"
+texMapping (x, y) = texSurround "item" x . eolS . y . eolS
+
+-- Plugin handler.
+
+texPluginErr n = ss ("ERROR: unable to pretty print plugin: " ++ n) . eolS . eolS
+
+texFromOutput _ (OutputPlain s) = ss s
+texFromOutput n _               = (texPluginErr n)
+
+texPlugin pp doc =
+  let n = printerName pp in
+  maybe (texPluginErr n) (\a -> texFromOutput n $ a doc) (printer pp LaTeX)
+
+makeTexSection ist title level body =
+  (if ist then texSection (level - 1) title else id)
+  . intersperseS (eolS . eolS) body
+
+}
+
+-------[ document to LaTeX translation ]---------------------------------------
+
+ATTR Document Structure
+     EitherStructureBlock
+     Block MaybeBlock
+     Inline Title         [ | | latex USE {.} {id} : ShowS                ]
+ATTR SectionContents
+     Blocks Inlines       [ | | latex USE {:} {[]}    : {[ShowS]}          ]
+-- ATTR Annotations          [ | | latex USE {:} {[]}    : {[(String, Node)]}  ]
+-- ATTR Annotation           [ | | latex                 : {(String, Node)}    ]
+ATTR Pairs                [ | | latex USE {:} {[]}    : {[(ShowS, ShowS)]}  ]
+ATTR Pair                 [ | | latex                 : {(ShowS, ShowS)}    ]
+
+SEM Document
+  | Document   lhs.latex = texDocument
+                           @title.latex
+                           @subtitle.latex
+                           @abstract.latex
+                           (unlinesS @body.latex)
+
+SEM Structure
+  | Section    lhs.latex = makeTexSection
+                           @title.isTitle
+                           @title.latex
+                           @lhs.level
+                           @contents.latex
+
+-- SEM Annotation
+--   | Tuple      lhs.latex = (@x1, @x2.latex)
+
+SEM Pair
+  | Tuple      lhs.latex = (@x1.latex, @x2.latex)
+
+SEM Block
+  | Blocks     lhs.latex = intersperseS (eolS . eolS) @blocks.latex
+  | Paragraph  lhs.latex = @paragraph.latex
+  | Enum       lhs.latex = texEnumerate $ concatMapS (texItem.)  @items.latex
+  | List       lhs.latex = texItemize   $ concatMapS (texItem.)  @items.latex
+  | Mapping    lhs.latex = texItemize   $ concatMapS texMapping  @pairs.latex
+  | Verbatim   lhs.latex = ss "-- todo Verbatim --"
+  | Anchor     lhs.latex = ss "-- todo Anchor --"
+  | Caption    lhs.latex = ss "-- todo Caption --"
+  | Include    lhs.latex = ss "-- todo Include --"
+  | Comment    lhs.latex = ss @comment
+  | Plugin     lhs.latex = texPlugin (fst @plugin) @lhs.sem
+
+SEM Inline
+  | Lines      lhs.latex = concatS @lines.latex
+  | Image      lhs.latex = ss "todo"
+  | Text       lhs.latex = ss (escapeTex @text)
+  | Emph       lhs.latex = texEmph @emph.latex
+  | Strong     lhs.latex = texStrong @strong.latex
+  | Fixed      lhs.latex = texFixed @fixed.latex
+  | Link       lhs.latex = if @kind == External
+                           then texLink @ref @description.latex
+                           else ss "-- todo non-External Links --"
+  | Footnote   lhs.latex = texFootnote @note.latex
+  | Quote      lhs.latex = ss "-- todo Quote --"
+
