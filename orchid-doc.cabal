@@ -9,19 +9,21 @@ License-file:     LICENSE
 Author:           Sebastiaan Visser
 Maintainer:       sfvisser@cs.uu.nl
 Build-Type:       Simple
-Build-Depends:    base ==3.0.*,
-                  bytestring == 0.9.*,
-                  xml ==1.3.*,
-                  salvia ==0.3.*,
-                  extensible-exceptions ==0.1.*,
-                  containers ==0.2.*,
-                  parsec ==3.0.*,
-                  mtl ==1.1.*,
-                  encoding ==0.5.*,
-                  process ==1.0.*,
-                  unix ==2.3.*,
-                  nano-md5 ==0.1.*,
-                  hscolour ==1.11.*
+Build-Depends:    base,
+                  bytestring,
+                  xml,
+                  salvia-protocol,
+                  salvia,
+                  extensible-exceptions,
+                  containers,
+                  parsec,
+                  transformers,
+                  monads-fd,
+                  encoding,
+                  process,
+                  unix,
+                  nano-md5,
+                  hscolour
 GHC-Options:      -fglasgow-exts -threaded
 HS-Source-Dirs:   src
 Other-modules:    Misc.Commons

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Text.Document.Parser.Wiki where
 
 import Control.Applicative
@@ -11,6 +12,7 @@ import Text.Document.Plugin
 import Text.Document.PluginRegister
 import Text.Document.Parser.WikiHelper
 import Network.Protocol.Uri
+import Network.Protocol.Uri.Parser (pAbsoluteUri)
 import Misc.Commons
 
 -------[ document parsers ]----------------------------------------------------
@@ -39,7 +41,7 @@ fromWiki t = parse pDocument "" (t ++ "\n")
 -- TODO: refactor + generalize
 
 -- Several links types.
-pWebLink = (\a -> link (show a) External (text $ show a)) <$> pAbsoluteURI
+pWebLink = (\a -> link (show a) External (text $ show a)) <$> pAbsoluteUri
 
 pReference = (\a f -> link a Reference (parseInline (f a)))
         <$> (string "[#" *> many (noneOf "|]")) <*> href <* char ']'

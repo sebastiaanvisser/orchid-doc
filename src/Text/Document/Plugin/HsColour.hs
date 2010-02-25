@@ -32,7 +32,7 @@ pWiki (Just (ContextWiki n)) = do
 
 -------- pretty printers ------------------------------------------------------
 
-ppXHTML s doc = OutputXML $ X.snippet $ HscCSS.hscolour False True "" s
+ppXHTML s doc = OutputXML $ X.snippet $ HscCSS.hscolour False s
 
 ppLaTeX s doc = OutputPlain
   $ "\\begin{verbatim}\n" ++ s ++ "\n\\end{verbatim}\n"

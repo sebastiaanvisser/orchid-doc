@@ -1,6 +1,6 @@
 
 
--- UUAGC 0.9.7 (src/Text/Document/Core/Type.ag)
+-- UUAGC 0.9.14 (src/Text/Document/Core/Type.ag)
 module Text.Document.Core.Type where
 
 import Prelude hiding (span, div)
