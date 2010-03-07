@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Text.Document.Parser.Wiki where
 
-import Control.Applicative
+import Control.Applicative hiding ((<|>))
 import Data.List (intercalate)
 import Data.Maybe (isNothing, catMaybes)
 import Prelude hiding (lines)
-import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
+import Text.ParserCombinators.Parsec hiding (many, optional)
 
 import Text.Document.Core.Type
 import Text.Document.Plugin

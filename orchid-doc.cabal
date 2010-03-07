@@ -1,5 +1,5 @@
 Name:             orchid-doc
-Version:          0.0.2
+Version:          0.0.3
 Description:      Orchid document library.
 Synopsis:         Orchid document library.
 Category:         Text
@@ -16,7 +16,7 @@ Build-Depends:    base,
                   salvia,
                   extensible-exceptions,
                   containers,
-                  parsec,
+                  parsec == 2.1.*,
                   transformers,
                   monads-fd,
                   encoding,
